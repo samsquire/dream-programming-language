@@ -53,9 +53,7 @@ task save-data
 
 This should have this grid:
 
-![schedule](Slide2.PNG)![Slide2](C:\Users\samue\dream-programming-language\Slide2.PNG)
-
-
+![schedule](Slide2.PNG)
 
 Programs are mixtures of parallel state machines and imperative logic.
 
