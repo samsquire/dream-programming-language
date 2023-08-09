@@ -6,29 +6,91 @@ This is the repository for my unnamed dream programming language and runtime.
 
 I am a backend and devops engineer. I usually reach for Python to develop small programs to see how to implement something, then Java for multithreaded programs and C or Java for my own programming language implementation projects. I wrote the beginnings of an amd64 JIT compiler in C at https://github.com/samsquire/compiler. I also worked describing algebralang https://github.com/samsquire/algebralang.
 
+* [This HN comment of mine highlights some things I want](https://news.ycombinator.com/item?id=35998888).
+
 # my dream
 
-* But I want some language that helps me program and think but deliver ready-for-production quality and level solutions.
-* The language helps you think of things from a data orientated perspective.
-* I want linear scalability.
+* But I want some language that helps me program and think but deliver ready-for-production quality and level solutions that are low maintenance and low cost.
+* The language represents and helps you think of things from a data orientated and control flow separately, independently and together perspective.
+* I want linear scalability for programs. I want programs written in this language to be linearly scalable from day 1 without additional effort. It should parallelise trivially by default.
+* I like the idea from [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and add features to make it useful.
 * I want to write distributed systems, performant and multithreaded asynchronous backends as easily and reliably deployable as a PHP app. Go is probably fit for this purpose, but I want to model how I think in my language.
 * Everything is nonblocking in my dream programming language. Blocking is handled by the compiler and runtime.
-* I think the language should have persistable pipelines or state machines as a first class concept like Temporal.io and support extremely fast messaging between threads.
-* It should parallelise by default.
-* A built-in advanced resolution algorithm that removes classes of bugs and handles all overrides and configuration potentialities. Configuration is easy.
+* I think the runtime should have persistable pipelines or state machines as a first class concept like Temporal.io and support extremely fast messaging between threads. It should be easy to implement retry logic.
+* 
+* A built-in advanced resolution algorithm that removes classes of bugs and handles all override combinations and configuration potentialities. Configuration is easy.
+* I want fast serialization.
 * I want a programming language that I can think in and has a notation that is effective for solving the kinds of problems that I have.
 
-* I want programs written in this language to be linearly scalability from day 1 without additional effort.
-* easy concurrency, parallelism, async and coroutines
+* 
+* Elegant and easy concurrency, parallelism, async and coroutines
 
-* high performance
-* easy to write
+* Reasonably high performance for the least effort.
+* Easy to write
 
-desired features and characteristics
+# I want a beautiful, extremely rich and powerful async, concurrent running task/process/pipeline API and syntax
+
+In database engines such as MySQL, Postgres and Microsoft SQL Server, you can show running queries and explain them to see their query plans.
+
+In Bash you can create jobs and they run in the background of the shell. In bash, a sequence of programs separated by pipe symbols runs every program in parallel and wires up the pipes of each program together so they form a pipeline. Data is written to the next program.
+
+```
+ps -aux | awk '{print $11}' | xargs -I{} file {}
+```
+
+The primitives for pipelines and jobs in bash are rather weak. You can make named pipes to create more complicated pipelines.
+
+In [LMAX Disruptor wiki on performance benchmark](https://github.com/LMAX-Exchange/disruptor/wiki/Performance-Results) there is a diagram of various topologies that can be formed. Such as 1 producer linked to multiple consumers, or multiple producers linked to one consumer. 
+
+Here are some diagrams of potential flows that can be imagined.
+
+![topologies1.png](topologies1.png)
+
+![topologies1.png](topologies2.png)
+
+In Go we can create topologies with channels.
+
+In C# there is LINQ which can be used to create elegant traversals of APIs.
+
+**I want to have an extremely flexible API and syntax for defining processes and their coordination that is easy to read and expressive of what I want the computer to do.**
+
+There are two approaches to this thought that I've thought of. Treat the scheduling as a pipeline of data itself, a data structure that defines what happens when. Forking and joins are literally data structure forks and joins.
+
+Some functions that allow expressive pipelines are the following:
+
+| Function name | Description                                                  |
+| ------------- | ------------------------------------------------------------ |
+| wait-for-all  | Run all tasks until completed                                |
+| wait-for-some | Run all tasks but wait for certain tasks before continuing.  |
+| race          | Run all tasks but continue when any one has finished. Do not cancel unfinished tasks. |
+| race-first    | Run all tasks but continue when any one has finished. Cancel unfinished tasks. |
+| join          | Join divergent flows.                                        |
+| fork          | Fork flow.                                                   |
+
+Iterators and generators and database query engine Volcano pattern comes into play with this idea.
+
+Some thoughts:
+
+* If we were to draw multiple pipelines, we can think of the boxes and lines being entire data OR control flow and sub flow of particular things.
+
+* Functions are effectively concurrent processes or generators.
+* The granularity of tasks should be as small or as large as you want.
+
+* State machines and async are combined together.
+
+* Flowcharts
+
+* Error flowcharts
+
+* Turing completeness for program execution. Hyperscheduling
+
+* provide two different data flows and they are scheduled merged
 
 # example programs
 
-## sharding and paralellisation
+## paralellisation
+
+Programs are mixtures of parallel state machines and imperative logic.
 
 Imagine we want to download a URL, parse it, fetch links and save it.
 
@@ -51,13 +113,15 @@ task save-data
 	db.save(url, link)
 ```
 
-This should have this grid:
+This should have this timeline grid:
 
 ![schedule](Slide2.PNG)
 
-Programs are mixtures of parallel state machines and imperative logic.
+
 
 ## bank example - start transaction generator threads and send money between accounts
+
+The compiler knows when things change and refresh logic shall regenerate facts when they become true.
 
 ```
 main = { generate_transactions }
@@ -68,7 +132,7 @@ handle_transactions = transaction(amount, source_account, destination_account)
 handle_transactions = transaction(amount, source_account, destination_account)
 	| !enough(source_account, amount) reject
     
-def generate_transactions():
+task generate_transactions():
 	while (true) {
 		destination_account = rng.nextInt(accounts.size())
 		source_account = rng.nextInt(accounts.size())
@@ -88,7 +152,7 @@ def deduct(source_account, amount):
 	balances[source_account] -= amount
 ```
 
-The compiler knows when things change and refresh logic shall regenerate facts when they become true.
+
 
 # first class coroutines and wiring
 
@@ -130,9 +194,15 @@ I really like the ideas in [quaint lang](https://github.com/bbu/quaint-lang).
 homepage | category-page | products-listing | product-page | add-to-basket | checkout | checkout-sign-in | delivery-details | payment-details | place-order | confirmation
 ```
 
+# data migration
+
+```
+database("databasename") server("server1") migrationrequest("server1", "server2") = send_data("databasename", server1", "server2")
+```
+
+# parallelism through division calculus
 
 
-* 
 
 # thoughts about what a programming language should do
 
@@ -140,7 +210,7 @@ homepage | category-page | products-listing | product-page | add-to-basket | che
 * a language that abstracts implementation details away from architectural details and allows the architecture to be independently transformed over time without breaking implementations
 * a language that allows easy migration of data structures over time
 * a language that allows the construction of super reliable, robust programs
-* a language that doesn't cause sprawl of low signal files, symbols
+* a language that doesn't cause sprawl of low signal files, symbols - files that do very little
 * a language that densely packs meaning, without boilerplate but without too many complicated features
 * a language that represents collections of observable behaviours as a first class citizen
 * a language that allows existing behaviours to be customised
@@ -151,16 +221,7 @@ homepage | category-page | products-listing | product-page | add-to-basket | che
 * a language that is as reliable as PHP, once it's deployed it stays running, doesn't crash
 * a language as reliable as Erlang, software failures don't crash the entire application
 
-# beautiful async runtime
-
-* functions are effectively concurrent processes.
-* The granularity of tasks should be as small or as large as you want.
-
-* State machines and async are combined together.
-
-* Flowcharts
-
-* Error flowcharts
+* 
 
 
 
@@ -195,4 +256,11 @@ State gets in the way of behaviours.
 
 # log focus
 
-In this language, there is a primitive that allows you to narrow down log lines displayed to particular debug lines.
+In this language, there is a primitive that allows you to narrow down log lines displayed to particular debug lines of code.
+
+# latches
+
+
+
+
+
