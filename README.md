@@ -2,43 +2,45 @@
 
 This is the repository for my unnamed dream programming language and runtime.
 
+* Jump to code samples.
+
 # context
 
-I am a backend and devops engineer. I usually reach for Python to develop small programs to see how to implement something, then Java for multithreaded programs and C or Java for my own programming language implementation projects. I wrote the beginnings of an amd64 JIT compiler in C at https://github.com/samsquire/compiler. I also worked describing algebralang https://github.com/samsquire/algebralang.
+I am a backend and devops engineer. I usually reach for Python to develop small programs to see how to implement something, then Java for multithreaded programs and C or Java for my own programming language implementation projects. I wrote the beginnings of an amd64 JIT compiler in C at https://github.com/samsquire/compiler. I tried to describe algebralang https://github.com/samsquire/algebralang.
 
 * [This HN comment of mine highlights some things I want](https://news.ycombinator.com/item?id=35998888).
 
 # my dream
 
 * But I want some language that helps me program and think but deliver ready-for-production quality and level solutions that are low maintenance and low cost.
+* I want linear scalability for programs. I want programs written in this language to be linearly scalable across coroutines (for IO scalability), across threads, across machines from day 1 without additional effort. It should parallelise trivially by default.
 * The language represents and helps you think of things from a data orientated and control flow separately, independently and together perspective.
-* I want linear scalability for programs. I want programs written in this language to be linearly scalable from day 1 without additional effort. It should parallelise trivially by default.
-* I like the idea from [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and add features to make it useful.
+* I like the thoughts and idea I wrote in [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and efficient at micro/small scenarios and add features to make it useful.
 * I want to write distributed systems, performant and multithreaded asynchronous backends as easily and reliably deployable as a PHP app. Go is probably fit for this purpose, but I want to model how I think in my language.
-* Everything is nonblocking in my dream programming language. Blocking is handled by the compiler and runtime.
+* Everything is nonblocking in my dream programming language. Blocking is handled by the compiler and runtime. I have notes about a [3 tier multithreaded architecture](https://github.com/samsquire/three-tier-multithreaded-architecture) design.
 * I think the runtime should have persistable pipelines or state machines as a first class concept like Temporal.io and support extremely fast messaging between threads. It should be easy to implement retry logic.
-* 
 * A built-in advanced resolution algorithm that removes classes of bugs and handles all override combinations and configuration potentialities. Configuration is easy.
 * I want fast serialization.
 * I want a programming language that I can think in and has a notation that is effective for solving the kinds of problems that I have.
-
-* 
 * Elegant and easy concurrency, parallelism, async and coroutines
-
 * Reasonably high performance for the least effort.
 * Easy to write
 
 # I want a beautiful, extremely rich and powerful async, concurrent running task/process/pipeline API and syntax
 
+It should have an amazing GUI, be useable from a REPL style interface, have a command line similar to bash and have a rich API.
+
+It's interesting how every build system, frontend framework, programming language implements its own promise pipeline/delayed execution/observables/event propagation/pipeline/dirty refresh logic.
+
 In database engines such as MySQL, Postgres and Microsoft SQL Server, you can show running queries and explain them to see their query plans.
 
-In Bash you can create jobs and they run in the background of the shell. In bash, a sequence of programs separated by pipe symbols runs every program in parallel and wires up the pipes of each program together so they form a pipeline. Data is written to the next program.
+In Bash you can create jobs and they run in the background of the shell. In bash, a sequence of programs separated by pipe symbols runs every program in parallel and wires up the pipes of each program together so they form a pipeline. Data is written to stdin (or other) pipes of the next program in the pipeline.
 
 ```
 ps -aux | awk '{print $11}' | xargs -I{} file {}
 ```
 
-The primitives for pipelines and jobs in bash are rather weak. You can make named pipes to create more complicated pipelines.
+The primitives for pipelines and jobs in bash are rather weak in how you can interact with a running pipeline. You can make named pipes to create more complicated pipelines.
 
 In [LMAX Disruptor wiki on performance benchmark](https://github.com/LMAX-Exchange/disruptor/wiki/Performance-Results) there is a diagram of various topologies that can be formed. Such as 1 producer linked to multiple consumers, or multiple producers linked to one consumer. 
 
@@ -48,15 +50,26 @@ Here are some diagrams of potential flows that can be imagined.
 
 ![topologies1.png](topologies2.png)
 
-In Go we can create topologies with channels.
+In Go we can create topologies between tasks (goroutines) with channels.
 
-In C# there is LINQ which can be used to create elegant traversals of APIs.
+In functional reactive programming and reactive programming and dataflow programming, we have ideas of pipelines. We can apply those ideas to scheduling.
 
-**I want to have an extremely flexible API and syntax for defining processes and their coordination that is easy to read and expressive of what I want the computer to do.**
+In Temporal.io, it allows you to write deterministic pipelines that can recover at any crash and retry because API calls are cached and memoized. When restarting the server, it replays values that were returned previously allowing the code to get  into the same state.
 
-There are two approaches to this thought that I've thought of. Treat the scheduling as a pipeline of data itself, a data structure that defines what happens when. Forking and joins are literally data structure forks and joins.
+In C# there is LINQ which can be used to create elegant traversals of APIs, these are kind of pipelines or processes.
 
-Some functions that allow expressive pipelines are the following:
+In Continuous Integration/Continuous Deployment/Delivery systems (CI/CD) there are systems such as GoCD, Jenkins pipelines, gitlab, github actions which run pipelines.
+
+Later in this document I talk about **latches** and how important they are, but the pipeline and process API and syntax needs to allow **events** to come into the pipeline at any stage. 
+
+**I want to have an extremely flexible API and syntax for defining processes and their coordination that is easy to read and expressive of what I want the computer to do.** I also want rich API for interacting with a running pipeline.
+
+There are two approaches to this goal that I've thought of:
+
+1. Treat the scheduling as a pipeline of data itself that is itself transformed, a data structure that defines what happens when and where. Control flow forking and joins are literally data structure forks and joins. This is essentially a streamable AST with relational semantics. Alternatively we could split a schedule into a list of closures or jumps which represent each part of a pipeline. Scheduling is just the consumption of a generator, it is turing completeness for scheduling or hyperscheduling.
+2. Provide rich functions for controlling, defining and interacting with pieces of work that are running or not running.
+
+Some functions that allow expressive pipelines are designed to used together are the following:
 
 | Function name | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
@@ -66,10 +79,25 @@ Some functions that allow expressive pipelines are the following:
 | race-first    | Run all tasks but continue when any one has finished. Cancel unfinished tasks. |
 | join          | Join divergent flows.                                        |
 | fork          | Fork flow.                                                   |
+| load-balance  |                                                              |
+
+What operations should be possible on a process?
+
+| Process task   | Description                       |
+| -------------- | --------------------------------- |
+| Pause          | Pause every step of the pipeline. |
+| Hold back task | Prevent a task from running       |
+| delay-task     |                                   |
+
+
 
 Iterators and generators and database query engine Volcano pattern comes into play with this idea.
 
 Some thoughts:
+
+* Parsing is linked to communication. Parsing methodology can be applied to protocol logic. In a parsing diagram, we have train-tracks for different paths. This can be used for bidirectional protocol development.
+
+* https://Tray.io/ is doing something similar to what I enjoy.
 
 * If we were to draw multiple pipelines, we can think of the boxes and lines being entire data OR control flow and sub flow of particular things.
 
@@ -82,9 +110,105 @@ Some thoughts:
 
 * Error flowcharts
 
-* Turing completeness for program execution. Hyperscheduling
+* 
 
 * provide two different data flows and they are scheduled merged
+
+# I introduce to you the "standard cycle" to try solve problems with "null" and software getting into inescapable states
+
+Have you ever run a program and then it failed and then everything was in a strange state that wouldn't recover by running it again? This tends to happen with package managers, shell scripts and Ansible (if you don't use it right). So most people resort to power cycling the system or deleting files or folders to get the system into a good state. When worse comes to worse, you have to log into an administrative interface and manually delete items. For example, in AWS CloudFormation, you might have to delete a stack.
+
+Sum types and avoiding representing invalid states goes part of the way to solving this problem. Some languages have exhaustive case checking.
+
+This is the pattern I'm referring to:
+
+```
+if key not in collection:
+	collection[key] = []
+collection[key].append(item)
+```
+
+How many times have you written code that initializes something if it has not been created? How many times have you had to create empty data structures (such as nested lists) in the right shape to receive data?
+
+
+
+Programs can get into strange states that were not expected and not designed.
+
+ 
+
+Shouldn't the various states that a system can get into be well tested?
+
+
+
+FoundationDB does good work with deterministic testing. TLA+ can do state space testing.
+
+This idea is that every thing has a standard lifecycle and the happy path of a system is the transition through these lifecycles only. If we attempt something and it fails, it might be stateful. How do we recover?
+
+**Devops work and package work is mainly just rerunning things with a fix until it works. Trial and error. This is very slow and tedious.**
+
+Now imagine a series of clocks, where each clock position represents a state for that thing. As a program progresses, each hand moves between states around the clock face. Each relationship between each clock is defined by how the code reacts to a given state and decides to do something.
+
+![circles](circles.png)
+
+Here's a list of steps:
+
+```
+install_package("xyz")
+start_service("xyz")
+setup_object_in_service("kind1", "thing1", metdata1)
+setup_object_in_service("kind2", "thing2", metdata2)
+setup_object_in_service("kind2", "thing3", metdata3)
+setup_object_in_service("kind3", "thing4", metdata4)
+setup_object_in_service("kind3", "thing5", metdata5)
+
+
+```
+
+What are potential results for each of these steps? I've listed just some I can think off the top of my head:
+
+```
+install_package("xyz")
+ -> package already installed
+ -> package not installed, installed successfully
+ -> package installed, unsuccessfully
+ -> package not installed, unsucessful installation
+start_service("xyz")
+-> service already started
+-> service not started and nwo started
+-> service doesn't exist
+setup_object_in_service("kind1", "thing1", metdata1)
+setup_object_in_service("kind2", "thing2", metdata2)
+setup_object_in_service("kind2", "thing3", metdata3)
+setup_object_in_service("kind3", "thing4", metdata4)
+setup_object_in_service("kind3", "thing5", metdata5)
+
+```
+
+
+
+
+
+We might have a file that needs to be created and initialised. Then we want to write to that file.
+
+We have dependencies between items that need to be created and this means there is an order that things must be created to create the right relationships between things - something has to exist for you to create a relationship to it. This is why CASCADE exists in databases for foreign key relationships.
+
+Package manager for standard cycles.
+
+# I introduce you to "Advanced resolution"
+
+If you've configured a HTTP web server for request handling - associating code to URLs - then you're effectively doing what this idea is about. Python developers use decorators to tie code to request handling such as in Flask or FastAPI, Java developers use annotations and fluent interfaces in Spring Boot or Dropwizard.
+
+**Advanced resolution is the idea we have a number of cases and that we need to dispatch to the right one, given the right set of criteria or rules and we want to resolve to the correct thing.**
+
+It should be elegant and composable.
+
+We want to associate facts or scenarios with cases.
+
+In Puppet's hieradata, there is a hierarchy of keyvalues that are resolved in a certain order.
+
+In Ansible, data is in a database of facts.
+
+
 
 # example programs
 
