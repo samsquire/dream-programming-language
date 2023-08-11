@@ -2,18 +2,18 @@
 
 This is the repository for my unnamed dream programming language and runtime.
 
-* Jump to code samples.
+* [Jump to "example programs"](https://github.com/samsquire/dream-programming-language#example-programs)
 
 # context
 
-I am a backend and devops engineer. I usually reach for Python to develop small programs to see how to implement something, then Java for multithreaded programs and C or Java for my own programming language implementation projects. I wrote the beginnings of an amd64 JIT compiler in C at https://github.com/samsquire/compiler. I tried to describe algebralang https://github.com/samsquire/algebralang.
+I am a backend and devops engineer. I usually reach for Python to develop small programs to see how to implement something, then Java for multithreaded programs and C or Java for my own programming language implementation projects. I wrote the beginnings of an amd64 JIT compiler in C at https://github.com/samsquire/compiler. I tried to describe algebralang at https://github.com/samsquire/algebralang.
 
 * [This HN comment of mine highlights some things I want](https://news.ycombinator.com/item?id=35998888).
 
 # my dream
 
 * But I want some language that helps me program and think but deliver ready-for-production quality and level solutions that are low maintenance and low cost.
-* I want linear scalability for programs. I want programs written in this language to be linearly scalable across coroutines (for IO scalability), across threads, across machines from day 1 without additional effort. It should parallelise trivially by default.
+* I want linear scalability for programs. I want programs written in this language to be linearly scalable for programs written for the language across coroutines (for IO scalability), across threads, across machines from day 1 without additional effort. It should parallelise trivially by default.
 * The language represents and helps you think of things from a data orientated and control flow separately, independently and together perspective.
 * I like the thoughts and idea I wrote in [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and efficient at micro/small scenarios and add features to make it useful.
 * I want to write distributed systems, performant and multithreaded asynchronous backends as easily and reliably deployable as a PHP app. Go is probably fit for this purpose, but I want to model how I think in my language.
@@ -26,9 +26,55 @@ I am a backend and devops engineer. I usually reach for Python to develop small 
 * Reasonably high performance for the least effort.
 * Easy to write
 
+# Introducing "statelines"
+
+Statelines state machines to be formulated that are reactive to multiple scenarios simultaneously. (They are a generalisation of "latches" which is covered in "[Pervasive Latches]()")
+
+Here is two statelines which is designed to be run in multiple threads and represents a communication between two threads. The first thread sends a message to the other and then the other waits to receive it, then the first thread waits for a reply and the second thread sends a reply.
+
+`thread(s)` is a fact or event that has a parameter `s`, when this fact is fired or activated, the state machine moves to the next state, which is after the equals symbol. The state machine waits for `state1` and when that it fires, it transitions to state after the pipe symbol `|`. 
+
+```
+thread(s) = state1(yes) | send(message) | receive(message2);
+thread(r) = state1(yes) | receive(message) | send(message2);
+```
+
+Here is another stateline that represents the progression of an item through a number of states:
+
+``` 
+available(item) = lent_out(item) | returned(item) | restocked(item) | available(item)
+```
+
+We can also use multiple facts in state group. The following waits for state1a, state1b, state1c to be fired, in any order and then waits for the next group of facts.
+
+```
+state1a state1b state1c = state2a state2b state2c |state3a state3b state3c
+```
+
+These are statelines for an async/await thread pool:
+
+```
+next_free_thread = 2
+task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1)
+
+running_on(A, 1)
+thread(1)
+assignment(A, 1)
+thread_free(next_free_thread) = fork(A, B)
+                                | send_task_to_thread(B, next_free_thread)
+                                |   running_on(B, 2)
+                                    paused(B, 1)
+                                    running_on(A, 1)
+                               | { yield(B, returnvalue) | paused(B, 2) }
+                                 { await(A, B, returnvalue) | paused(A, 1) }
+                               | send_returnvalue(B, A, returnvalue) 
+```
+
+
+
 # I want a beautiful, extremely rich and powerful async, concurrent running task/process/pipeline API and syntax
 
-It should have an amazing GUI, be useable from a REPL style interface, have a command line similar to bash and have a rich API.
+It should have an amazing GUI for viewing, good visualisation, be useable from a REPL style interface, have a command line for the creation and management of quick pipelines and have a rich API for its management or piecing together tasks.
 
 It's interesting how every build system, frontend framework, programming language implements its own promise pipeline/delayed execution/observables/event propagation/pipeline/dirty refresh logic.
 
@@ -83,11 +129,13 @@ Some functions that allow expressive pipelines are designed to used together are
 
 What operations should be possible on a process?
 
-| Process task   | Description                       |
-| -------------- | --------------------------------- |
-| Pause          | Pause every step of the pipeline. |
-| Hold back task | Prevent a task from running       |
-| delay-task     |                                   |
+| Process task   | Description                                             |
+| -------------- | ------------------------------------------------------- |
+| Pause          | Pause every step of the pipeline.                       |
+| Hold back task | Prevent a task from running                             |
+| delay-task     |                                                         |
+| persist-state  | Persist the pipeline state so that it can be recreated. |
+| load-state     |                                                         |
 
 
 
@@ -174,7 +222,7 @@ install_package("xyz")
  -> package not installed, unsucessful installation
 start_service("xyz")
 -> service already started
--> service not started and nwo started
+-> service not started and failed to start
 -> service doesn't exist
 setup_object_in_service("kind1", "thing1", metdata1)
 setup_object_in_service("kind2", "thing2", metdata2)
@@ -211,6 +259,15 @@ In Ansible, data is in a database of facts.
 
 
 # example programs
+
+## statelines and pipelines
+
+
+
+```
+thread(s) = state1(yes) | send(message) | receive(message2);
+thread(r) = state1(yes) | receive(message) | send(message2);
+```
 
 ## paralellisation
 
