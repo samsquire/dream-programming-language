@@ -10,6 +10,14 @@ I am a backend and devops engineer. I usually reach for Python to develop small 
 
 * [This HN comment of mine highlights some things I want](https://news.ycombinator.com/item?id=35998888).
 
+# comparison to other languages
+
+I am grateful for languages such as Erlang, Go, Rust and Java which all have strong multithreading support.
+
+Why don't I just use Erlang, Rust or Go? I do already use Java.
+
+Multithreading is pretty difficult to get right. I want multicore programming to be simpler and easier. So I'm trying to come up with designs that are easy to parallelise. I am also just enjoying learning what kind of things I want to be easier.
+
 # my dream
 
 * But I want some language that helps me program and think but deliver ready-for-production quality and level solutions that are low maintenance and low cost.
@@ -18,7 +26,7 @@ I am a backend and devops engineer. I usually reach for Python to develop small 
 * I like the thoughts and idea I wrote in [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and efficient at micro/small scenarios and add features to make it useful.
 * I want to write distributed systems, performant and multithreaded asynchronous backends as easily and reliably deployable as a PHP app. Go is probably fit for this purpose, but I want to model how I think in my language.
 * Everything is nonblocking in my dream programming language. Blocking is handled by the compiler and runtime. I have notes about a [3 tier multithreaded architecture](https://github.com/samsquire/three-tier-multithreaded-architecture) design.
-* I think the runtime should have persistable pipelines or state machines as a first class concept like Temporal.io and support extremely fast messaging between threads. It should be easy to implement retry logic.
+* I think the runtime should have persistable pipelines or state machines as a first class concept like Temporal.io and support extremely fast messaging between threads such as LMAX Disruptor. It should be easy to implement retry logic.
 * A built-in advanced resolution algorithm that removes classes of bugs and handles all override combinations and configuration potentialities. Configuration is easy.
 * I want fast serialization.
 * I want a programming language that I can think in and has a notation that is effective for solving the kinds of problems that I have.
@@ -28,7 +36,7 @@ I am a backend and devops engineer. I usually reach for Python to develop small 
 
 # Introducing "statelines"
 
-Statelines state machines to be formulated that are reactive to multiple scenarios simultaneously. (They are a generalisation of "latches" which is covered in "[Pervasive Latches]()")
+Statelines state machines to be formulated that are reactive to multiple scenarios simultaneously. (They are a generalisation of "latches" which is covered in "[Introducing Pervasive Latches]()")
 
 Here is two statelines which is designed to be run in multiple threads and represents a communication between two threads. The first thread sends a message to the other and then the other waits to receive it, then the first thread waits for a reply and the second thread sends a reply.
 
@@ -69,6 +77,56 @@ thread_free(next_free_thread) = fork(A, B)
                                  { await(A, B, returnvalue) | paused(A, 1) }
                                | send_returnvalue(B, A, returnvalue) 
 ```
+
+
+
+# Introducing Pervasive Latches
+
+I love flexible control flow. Latches are handlers for events. They are inspired by algebraic effects.
+
+**A latch is like a barrier that prevents code from moving past it**. But I also add an additional behavioural idea, they can be "activated", like a function call with a "fire" command. The computer can do other things while waiting for a latch to fire.
+
+The following program is a tcp listener that waits for the socket to be ready for reading and writing and then there is a latch on a variable for its change of value.
+
+```
+tcp = tcp-connection("127.0.0.1", 6769)                   
+latch tcp_established wait tcp.established:               
+email = create-email()
+fire email-created
+
+latch tcp.ready_read:
+value = tcp.read(100)
+latch value_was_password value == "PASSWORD":                                   
+print("password was correct")
+messages.push("password was correct")
+fire user_logged_in
+
+else latch value_incorrect_password value != "PASSWORD":
+messages.push("password was incorrect")
+fire user_invalid_incorrect
+
+latch tcp.established:
+latch wait email-created
+print("Email prepared")
+
+email.send(value)
+
+latch tcp.ready_write:
+tcp.write(messages.pop())
+```
+
+A nested latch is like waiting for the parent latch and then waiting for the child latch to fire.
+
+Microops - this would need to be compiled into a style that my [three tier multithreaded architecture understands](https://github.com/samsquire/three-tier-multithreaded-architecture). Essentially there would be a coroutine structure.
+
+```
+```
+
+
+
+Disambiguation file
+
+
 
 
 
@@ -164,11 +222,15 @@ Some thoughts:
 
 # I introduce to you the "standard cycle" to try solve problems with "null" and software getting into inescapable states
 
-Have you ever run a program and then it failed and then everything was in a strange state that wouldn't recover by running it again? This tends to happen with package managers, shell scripts and Ansible (if you don't use it right). So most people resort to power cycling the system or deleting files or folders to get the system into a good state. When worse comes to worse, you have to log into an administrative interface and manually delete items. For example, in AWS CloudFormation, you might have to delete a stack.
+Have you ever run a program and then it failed and then everything was in a strange state that wouldn't recover by running it again? This tends to happen with package managers, shell scripts and Ansible (if you don't use it right). So most people resort to power cycling the system or deleting files or folders to get the system into a good state. When worse comes to worse, you have to log into an administrative interface and manually delete items. For example, in AWS CloudFormation, you might have to delete a stack or log in and delete all the failed attempts.
+
+**Devops work and package work is mainly just rerunning things with a fix until it works. Trial and error. This is very slow and tedious.**
+
+Shouldn't the various states that a system can get into be well tested?
 
 Sum types and avoiding representing invalid states goes part of the way to solving this problem. Some languages have exhaustive case checking.
 
-This is the pattern I'm referring to:
+This is one such pattern I'm referring to. If something doesn't exist, create an empty place for it.
 
 ```
 if key not in collection:
@@ -176,27 +238,21 @@ if key not in collection:
 collection[key].append(item)
 ```
 
-How many times have you written code that initializes something if it has not been created? How many times have you had to create empty data structures (such as nested lists) in the right shape to receive data?
+How many times have you written code that initializes something if it has not been created? How many times have you had to create empty data structures (such as nested lists) in the right shape to receive data? In other words, the "null" case.
 
-
-
-Programs can get into strange states that were not expected and not designed.
-
- 
-
-Shouldn't the various states that a system can get into be well tested?
-
-
+Programs can get into strange states that were not expected and not designed. Imagine you're configuring RabbitMQ, a message queue and you need to set up the exchanges, and routing keys. What if a proportion of things were uninitialized? What if things are partially initialized?
 
 FoundationDB does good work with deterministic testing. TLA+ can do state space testing.
 
 This idea is that every thing has a standard lifecycle and the happy path of a system is the transition through these lifecycles only. If we attempt something and it fails, it might be stateful. How do we recover?
 
-**Devops work and package work is mainly just rerunning things with a fix until it works. Trial and error. This is very slow and tedious.**
+## Interlocking clocks
 
 Now imagine a series of clocks, where each clock position represents a state for that thing. As a program progresses, each hand moves between states around the clock face. Each relationship between each clock is defined by how the code reacts to a given state and decides to do something.
 
 ![circles](circles.png)
+
+Each data collection is in a state for a key.
 
 Here's a list of steps:
 
@@ -225,6 +281,8 @@ start_service("xyz")
 -> service not started and failed to start
 -> service doesn't exist
 setup_object_in_service("kind1", "thing1", metdata1)
+-> thing2 already exists
+-> thing2 already exists and is different
 setup_object_in_service("kind2", "thing2", metdata2)
 setup_object_in_service("kind2", "thing3", metdata3)
 setup_object_in_service("kind3", "thing4", metdata4)
@@ -232,19 +290,33 @@ setup_object_in_service("kind3", "thing5", metdata5)
 
 ```
 
-
-
-
-
 We might have a file that needs to be created and initialised. Then we want to write to that file.
 
 We have dependencies between items that need to be created and this means there is an order that things must be created to create the right relationships between things - something has to exist for you to create a relationship to it. This is why CASCADE exists in databases for foreign key relationships.
+
+## The standard cycle
+
+The standard cycle is a standard lifecycle for objects:
+
+| Lifecycle stage            | Description                                         |
+| -------------------------- | --------------------------------------------------- |
+| Empty                      | Just created.                                       |
+| Populated and the same     |                                                     |
+| Populated and different    | There's a risk of data loss if we destroy the item. |
+| Failed to create as empty. |                                                     |
+|                            |                                                     |
+
+
+
+
+
+
 
 Package manager for standard cycles.
 
 # I introduce you to "Advanced resolution"
 
-If you've configured a HTTP web server for request handling - associating code to URLs - then you're effectively doing what this idea is about. Python developers use decorators to tie code to request handling such as in Flask or FastAPI, Java developers use annotations and fluent interfaces in Spring Boot or Dropwizard.
+If you've configured a HTTP web server for request handling - associating code to (parts of) URLs - then you're effectively doing what this idea is about. Python developers use decorators to tie code to request handling such as in Flask or FastAPI, Java developers use annotations and fluent interfaces in Spring Boot or Dropwizard.
 
 **Advanced resolution is the idea we have a number of cases and that we need to dispatch to the right one, given the right set of criteria or rules and we want to resolve to the correct thing.**
 
@@ -255,6 +327,10 @@ We want to associate facts or scenarios with cases.
 In Puppet's hieradata, there is a hierarchy of keyvalues that are resolved in a certain order.
 
 In Ansible, data is in a database of facts.
+
+# I want to map control flow to data crunching
+
+Computers are adding machines. If you think of a value has a position, and you add to it, you're moving it. We can think of the paths of programs through memory as flow through space.
 
 
 
