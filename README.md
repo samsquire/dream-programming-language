@@ -3,6 +3,7 @@
 This is the repository for my unnamed dream programming language and runtime.
 
 * [Jump to "example programs"](https://github.com/samsquire/dream-programming-language#example-programs)
+* For my technical perspectives repository, see [samsquire/perspectives](https://github.com/samsquire/perspectives)
 
 # context
 
@@ -10,13 +11,21 @@ I am a backend and devops engineer. I usually reach for Python to develop small 
 
 * [This HN comment of mine highlights some things I want](https://news.ycombinator.com/item?id=35998888).
 
-# comparison to other languages
+# on other languages
 
-I am grateful for languages such as Erlang, Go, Rust and Java which all have strong multithreading support.
+I am grateful for languages such as Erlang, Go, Rust and Java that all have strong multithreading support.
 
-Why don't I just use Erlang, Rust or Go? I do already use Java.
+Why don't I just use Erlang, Rust or Go? I do already use Java. It's educational to think of primitives that accomplish the goals of my language.
 
-Multithreading is pretty difficult to get right. I want multicore programming to be simpler and easier. So I'm trying to come up with designs that are easy to parallelise. I am also just enjoying learning what kind of things I want to be easier.
+I am also just enjoying learning what kind of things I want to be easier.
+
+I think most of these languages suffer from what I call ["You're holding it wrong" problem](). There's something simple we, we want to accomplish or represent but these languages make it difficult. **I am looking for an elusive readable transformable, scalable, understandable architecture.**
+
+I am a hobbyist in software design, architecture and implementation. So I want to solve some of the problems that Erlang, Rust, Go, Java haven't really done to my level of desire. **I'm looking for a certain kind of elegance.**
+
+Multithreading is pretty difficult to get right. I want multicore programming to be simpler and easier. So I'm trying to come up with designs that are easy to parallelise.
+
+
 
 # my dream
 
@@ -40,20 +49,20 @@ Statelines state machines to be formulated that are reactive to multiple scenari
 
 Here is two statelines which is designed to be run in multiple threads and represents a communication between two threads. The first thread sends a message to the other and then the other waits to receive it, then the first thread waits for a reply and the second thread sends a reply.
 
-`thread(s)` is a fact or event that has a parameter `s`, when this fact is fired or activated, the state machine moves to the next state, which is after the equals symbol. The state machine waits for `state1` and when that it fires, it transitions to state after the pipe symbol `|`. 
+`thread(s)` is NOT a function call - it's a fact or event that has a parameter `s`, when this fact is fired or activated, the state machine moves to the next state, which is after the equals symbol. The state machine waits for `state1` and when that it fires, it transitions to a state group after the pipe symbol `|`.
 
 ```
 thread(s) = state1(yes) | send(message) | receive(message2);
 thread(r) = state1(yes) | receive(message) | send(message2);
 ```
 
-Here is another stateline that represents the progression of an item through a number of states:
+Here is another stateline that represents the progression of an item in a library through a number of states:
 
 ``` 
 available(item) = lent_out(item) | returned(item) | restocked(item) | available(item)
 ```
 
-We can also use multiple facts in state group. The following waits for state1a, state1b, state1c to be fired, in any order and then waits for the next group of facts.
+We can also use multiple facts in state group. The following waits for state1a, state1b, state1c to be fired, in any order and then waits for the next group of facts, state2a, state2b, state2c.
 
 ```
 state1a state1b state1c = state2a state2b state2c |state3a state3b state3c
@@ -82,9 +91,9 @@ thread_free(next_free_thread) = fork(A, B)
 
 # Introducing Pervasive Latches
 
-I love flexible control flow. Latches are handlers for events. They are inspired by algebraic effects.
+I love flexible control flow. Latches are handlers for events. They are inspired by algebraic effects and delimited continuations. What's great about them is that they can return control flow back and forth, repeatedly in arbitrary levels of nestedness. You can callback a callback. So you can do aspect orientated programming or various schemes.
 
-**A latch is like a barrier that prevents code from moving past it**. But I also add an additional behavioural idea, they can be "activated", like a function call with a "fire" command. The computer can do other things while waiting for a latch to fire.
+**A latch is like a barrier that prevents code from moving past it**. But I also add an additional behavioural idea, they can be "activated" from elsewhere, like a function call with a "fire" command. The computer transforms latches into coroutines so the computer can do other things while waiting for a latch to fire.
 
 The following program is a tcp listener that waits for the socket to be ready for reading and writing and then there is a latch on a variable for its change of value.
 
@@ -96,14 +105,7 @@ fire email-created
 
 latch tcp.ready_read:
 value = tcp.read(100)
-latch value_was_password value == "PASSWORD":                                   
-print("password was correct")
-messages.push("password was correct")
-fire user_logged_in
 
-else latch value_incorrect_password value != "PASSWORD":
-messages.push("password was incorrect")
-fire user_invalid_incorrect
 
 latch tcp.established:
 latch wait email-created
@@ -112,6 +114,14 @@ print("Email prepared")
 email.send(value)
 
 latch tcp.ready_write:
+latch value_was_password value == "PASSWORD":                                   
+print("password was correct")
+messages.push("password was correct")
+fire user_logged_in
+
+else latch value_incorrect_password value != "PASSWORD":
+messages.push("password was incorrect")
+fire user_invalid_incorrect
 tcp.write(messages.pop())
 ```
 
@@ -226,7 +236,7 @@ Have you ever run a program and then it failed and then everything was in a stra
 
 **Devops work and package work is mainly just rerunning things with a fix until it works. Trial and error. This is very slow and tedious.**
 
-Shouldn't the various states that a system can get into be well tested?
+Shouldn't the various states that a system can get into be well tested and in advance?
 
 Sum types and avoiding representing invalid states goes part of the way to solving this problem. Some languages have exhaustive case checking.
 
@@ -306,19 +316,15 @@ The standard cycle is a standard lifecycle for objects:
 | Failed to create as empty. |                                                     |
 |                            |                                                     |
 
+## Package manager for standard cycles.
 
 
-
-
-
-
-Package manager for standard cycles.
 
 # I introduce you to "Advanced resolution"
 
 If you've configured a HTTP web server for request handling - associating code to (parts of) URLs - then you're effectively doing what this idea is about. Python developers use decorators to tie code to request handling such as in Flask or FastAPI, Java developers use annotations and fluent interfaces in Spring Boot or Dropwizard.
 
-**Advanced resolution is the idea we have a number of cases and that we need to dispatch to the right one, given the right set of criteria or rules and we want to resolve to the correct thing.**
+**Advanced resolution is the idea we have a number of cases and that we need to dispatch to the right one, given the right set of criteria or rules and we want to resolve to the correct thing in the most efficient way**
 
 It should be elegant and composable.
 
