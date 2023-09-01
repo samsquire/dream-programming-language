@@ -19,7 +19,7 @@ Why don't I just use Erlang, Rust or Go? I do already use Java. It's educational
 
 I am also just enjoying learning what kind of things I want to be easier.
 
-I think most of these languages suffer from what I call ["You're holding it wrong" problem](). There's something simple we, we want to accomplish or represent but these languages make it difficult. This can be caused by a mixture of language feature interactions or the lacking of expressivity.**I am looking for an elusive readable transformable, scalable, understandable architecture.** For example, in C# creating an async web server is not beautiful.
+I think most of these languages suffer from what I call ["You're holding it wrong" problem](). There's something simple we, we want to accomplish or represent but these languages make it difficult. This can be caused by a mixture of language feature interactions or the lacking of expressivity.**I am looking for an elusive readable transformable, scalable, understandable architecture.** For example, in C# creating an async proxy server is not beautiful.
 
 I am a hobbyist in software design, architecture and implementation. So I want to solve some of the problems that Erlang, Rust, Go, Java haven't really done to my level of desire. **I'm looking for a certain kind of elegance.**
 
