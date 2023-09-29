@@ -19,9 +19,9 @@ Why don't I just use Erlang, Rust or Go? I do already use Java. It's educational
 
 I am also just enjoying learning what kind of things I want to be easier.
 
-I think most of these languages suffer from what I call ["You're holding it wrong" problem](). There's something simple we, we want to accomplish or represent but these languages make it difficult. This can be caused by a mixture of language feature interactions or the lacking of expressivity.**I am looking for an elusive readable transformable, scalable, understandable architecture.** For example, in C# creating an async proxy server is not beautiful.
+I think most of these languages suffer from what I call ["You're holding it wrong" problem](https://github.com/samsquire/perspectives#15-youre-holding-it-wrong). There's something simple we, we want to accomplish or represent but these languages make it difficult. This can be caused by a mixture of language feature interactions or the lacking of expressivity. **I am looking for an elusive readable transformable, scalable, understandable architecture.** For example, in C# creating an async proxy server is not beautiful. Or Rust async.
 
-I am a hobbyist in software design, architecture and implementation. So I want to solve some of the problems that Erlang, Rust, Go, Java haven't really done to my level of desire. **I'm looking for a certain kind of elegance.**
+I am a hobbyist in software design, architecture and implementation. So I want to solve some of the problems that Erlang, Rust, Go, Java haven't really done to my level of desire. **I'm looking for a certain kind of elegance and expressivity.**
 
 Multithreading is pretty difficult to get right. I want multicore programming to be simpler and easier. So I'm trying to come up with designs that are easy to parallelise.
 
@@ -30,9 +30,9 @@ Multithreading is pretty difficult to get right. I want multicore programming to
 # my dream
 
 * But I want some language that helps me program and think but deliver ready-for-production quality and level solutions that are low maintenance and low cost.
-* I want linear scalability for programs. I want programs written in this language to be linearly scalable for programs written for the language across coroutines (for IO scalability), across threads, across machines from day 1 without additional effort. It should parallelise trivially by default.
+* I want linear scalability for programs. I want programs written in this language to be linearly scalable for programs written for the language across coroutines (for IO scalability), across threads for CPU scalability, across machines from day 1 without additional effort. It should parallelise trivially by default.
 * The language represents and helps you think of things from a data orientated and control flow separately, independently and together perspective.
-* I like the thoughts and idea I wrote in [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and efficient at micro/small scenarios and add features to make it useful - while trying to maintain its performance characteristics. This is similar to tweaking Leetcode problems to cause them to be faster.
+* I like the thoughts and idea I wrote in [ideas4, 798. Microbenchmark upward](https://github.com/samsquire/ideas4#798-microbenchmark-upward) where we start with something known to be performant and efficient at micro/small scenarios and add features to make it useful - while trying to maintain its performance characteristics. This is similar to tweaking Leetcode problems to cause them to be faster. We build a runtime that is known to be efficient and feed it workloads.
 * I want to write distributed systems, performant and multithreaded asynchronous backends as easily and reliably deployable as a PHP app. Go is probably fit for this purpose, but I want to model how I think in my language.
 * Everything is nonblocking in my dream programming language. Blocking is handled by the compiler and runtime. I have notes about a [3 tier multithreaded architecture](https://github.com/samsquire/three-tier-multithreaded-architecture) design.
 * I think the runtime should have persistable pipelines or state machines as a first class concept like Temporal.io and support extremely fast messaging between threads such as LMAX Disruptor. It should be easy to implement retry logic.
@@ -45,7 +45,7 @@ Multithreading is pretty difficult to get right. I want multicore programming to
 
 # Introducing "statelines"
 
-Statelines state machines to be formulated that are reactive to multiple scenarios simultaneously. (They are a generalisation of "latches" which is covered in "[Introducing Pervasive Latches]()")
+Statelines are a state machines syntax formulation that are reactive to multiple scenarios simultaneously. (They are a generalisation of "latches" which is covered in "[Introducing Pervasive Latches]()")
 
 Here is two statelines which is designed to be run in multiple threads and represents a communication between two threads. The first thread sends a message to the other and then the other waits to receive it, then the first thread waits for a reply and the second thread sends a reply.
 
@@ -65,10 +65,10 @@ available(item) = lent_out(item) | returned(item) | restocked(item) | available(
 We can also use multiple facts in state group. The following waits for state1a, state1b, state1c to be fired, in any order and then waits for the next group of facts, state2a, state2b, state2c.
 
 ```
-state1a state1b state1c = state2a state2b state2c |state3a state3b state3c
+state1a state1b state1c = state2a state2b state2c | state3a state3b state3c
 ```
 
-These are statelines for an async/await thread pool:
+These are statelines for an async/await thread pool where curly brackets represent parallel state machines:
 
 ```
 next_free_thread = 2
@@ -111,13 +111,12 @@ latch tcp.established:
 latch wait email-created
 print("Email prepared")
 
-email.send(value)
-
 latch tcp.ready_write:
 latch value_was_password value == "PASSWORD":                                   
 print("password was correct")
 messages.push("password was correct")
 fire user_logged_in
+email.send(value)
 
 else latch value_incorrect_password value != "PASSWORD":
 messages.push("password was incorrect")
