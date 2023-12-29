@@ -75,17 +75,42 @@ next_free_thread = 2
 task(A) thread(1) assignment(A, 1) = running_on(A, 1) | paused(A, 1)
 
 running_on(A, 1)
-thread(1)
+thread(T)
 assignment(A, 1)
 thread_free(next_free_thread) = fork(A, B)
                                 | send_task_to_thread(B, next_free_thread)
                                 |   running_on(B, 2)
-                                    paused(B, 1)
-                                    running_on(A, 1)
+                                    paused(B, T)
+                                    running_on(A, T)
                                | { yield(B, returnvalue) | paused(B, 2) }
                                  { await(A, B, returnvalue) | paused(A, 1) }
                                | send_returnvalue(B, A, returnvalue) 
 ```
+
+next_free_thread needs to be an iterator that is limited to the thread count.
+
+Inferred communications are from the keys that are shared between facts.
+
+```
+
+B -> next_free_thread
+returnvalue -> returnvalue
+
+```
+
+This can be compiled down to efficient assembly. The mailbox processor for a thread needs only to inspect the incoming message and decide what to do.
+
+Should the state be a simple integer that uniquely represents the type in the state machine?
+
+A parallel state machine is an OR.
+
+```
+switch (state) {
+	case 1: 
+}
+```
+
+Blocking is an if statement.
 
 
 
